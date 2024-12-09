@@ -1,0 +1,14 @@
+{
+  "name": "action-rovo",
+  "version": "1.1.6",
+  "description": "An Rovo Agent app that helps in jira documentation",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@forge/api": "^4.1.1",
+    "@forge/events": "^0.9.5",
+    "@forge/resolver": "^1.6.2",
+    "markdown-it": "^14.1.0"
+  }
+}

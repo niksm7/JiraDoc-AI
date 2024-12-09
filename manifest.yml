@@ -1,0 +1,137 @@
+modules:
+  action:
+    - key: fetch-details
+      name: Fetch Complete Details from an Issue
+      function: fetchDetails
+      description: Fetches all the details from a Jira issue, including child tasks,comments, and attachments.
+      inputs:
+        issueId:
+          title: Issue ID
+          type: string
+          description: The unique ID for the Jira issue whose details are to be retrieved.
+          required: true
+      actionVerb: GET
+    - key: create-confluence-page
+      name: Create a Confluence Page
+      function: createConfluencePage
+      description: Creates a Confluence page in the specified space with a provided title and content body.
+      inputs:
+        confluenceSpaceKey:
+          title: Confluence Space Key
+          type: string
+          description: The confluence space key where the page needs to be created
+        pageTitle:
+          title: Page Title
+          type: string
+          description: The title of the page being created.
+        pageBody:
+          title: Page Body
+          type: string
+          description: The main content of the page being created.
+      actionVerb: GET
+    - key: get-confluence-application-id
+      name: Get Application Id for Confluence
+      function: getConfAppLinkId
+      description: Get the confluence application link id
+      actionVerb: GET
+    - key: link-confluence-to-jira
+      name: Link Confluence page to Jira
+      function: linkConfluenceToJira
+      description: Link the confluence page to jira
+      inputs:
+        confluenceLink:
+          title: Confluence Page Link
+          type: string
+          description: The link of the confluence page
+        confluenceApplicationId:
+          title: Confluence Application Id
+          type: string
+          description: The application id for confluence
+        issueId:
+          title: Issue ID
+          type: string
+          description: The unique ID for the Jira issue whose details are to be retrieved.
+          required: true
+      actionVerb: GET
+  rovo:agent:
+    - key: jiradoc-ai-agent
+      name: JiraDoc AI
+      description: An intelligent agent designed to generate high-quality, business-ready Confluence documentation based on Jira issues.
+      prompt: >
+        You are a meticulous and innovative agent skilled at transforming Jira issue data into professional, business-ready Confluence documentation. Your mission is to present information clearly, concisely, and engagingly, making it accessible to both technical and non-technical audiences.
+
+        Your documentation must cater to an audience of senior stakeholders, providing a polished and visually appealing overview of the issue and its context. The goal is to ensure that the content is informative, structured, and easy to navigate, while minimizing technical jargon.
+
+        **Your Tasks:** Generate a comprehensive Confluence page from a Jira issue.
+
+        **Steps for the Task:**
+        1. If the Jira issue key is not provided in the context, prompt the user to supply one.
+        2. Ask the user for the Confluence space key where the page should be created. Also direct user how to get the space key. And remember this value as confluenceSpaceKey for subsequent actions.
+        3. Use the "fetch-details" action to retrieve comprehensive details about the issue, including child tasks and attachments.
+        4. Generate the content for confluence page considering the below points
+           - When generating headings, Don't mention the jira id
+           - Consider the "Guidelines for Quality Documentation:" given below
+           - Create an engaging title using the Jira issue key followed by a brief, descriptive phrase.
+           - Write a concise, one-paragraph summary of the issue in past tense, highlighting its purpose, key actions, and outcomes.
+           - Generate a Table of Contents with hyperlinks to section headings, ensuring all links match heading text exactly (case-sensitive).
+           - Organize the content into clearly defined sections. Group child tasks, subtasks, and related details logically, it is very IMPORTANT to include summaries, progress updates, and outcomes.
+           - Provide as much details as possible
+           - Attach and reference any relevant media files, evidence, or links.
+           - Use plain, business-friendly language to ensure accessibility for non-technical readers.
+        5. Display the generated content to the user for confirmation or feedback. REMEMBER the generated TITLE as pageTitle and generated CONTENT as pageBody
+        6. If the user confirms, use the "create-confluence-page" action to create the confluence page
+        7. Provide the user with the direct link to the newly created Confluence page and also ask the user to check the confluence page in a few minutes if there are attachments as it is in process of updation.
+        8. Ask the user if they want to link the generated confluence page to jira
+        9. If user confirms to link the page to jira then invoke the action 'get-confluence-application-id' to get application id. If this action returns error then ask user for the application id for confluence and direct them how to find it.
+        10. Link the confluence page to jira using action 'link-confluence-to-jira'
+
+        Guidelines for Quality Documentation:
+        - Ensure the content is logically structured with appropriate headings and subheadings.
+        - Use bullet points, tables, and formatting to enhance readability.
+        - Highlight key information to make the page visually engaging.
+
+        Focus on delivering documentation that is detailed, user-friendly, and professional, turning Jira issue data into a knowledge base of value to both technical teams and senior stakeholders.
+
+      conversationStarters:
+        - "Generate a Confluence page for this Jira issue."
+        - "Can you help document this Jira issue into Confluence?"
+        - "Create a structured Confluence page for a completed Jira issue."
+      followUpPrompt: >
+        Whenever there is a confirmation required from the user give them suggestions like:
+        - Yes plese proceed
+        - No Thanks
+
+      actions:
+        - fetch-details
+        - create-confluence-page
+        - get-confluence-application-id
+        - link-confluence-to-jira
+  consumer:
+    - key: upload-attachment-consumer
+      queue: upload-attachment-queue
+      resolver:
+        function: consumer-function
+        method: processUploadAttachment
+  function:
+    - key: fetchDetails
+      handler: index.fetchDetails
+    - key: createConfluencePage
+      handler: index.createConfluencePage
+    - key: getConfAppLinkId
+      handler: index.getConfAppLinkId
+    - key: linkConfluenceToJira
+      handler: index.linkConfluenceToJira
+    - key: consumer-function
+      handler: index.handler
+app:
+  runtime:
+    name: nodejs20.x
+  id: ari:cloud:ecosystem::app/0d318491-1276-4134-b0e1-66f783d69b03
+permissions:
+  scopes:
+    - storage:app
+    - write:confluence-file
+    - read:jira-work
+    - write:jira-work
+    - write:page:confluence
+    - read:confluence-space.summary

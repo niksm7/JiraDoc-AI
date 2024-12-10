@@ -20,14 +20,17 @@ modules:
           title: Confluence Space Key
           type: string
           description: The confluence space key where the page needs to be created
+          required: true
         pageTitle:
           title: Page Title
           type: string
           description: The title of the page being created.
+          required: true
         pageBody:
           title: Page Body
           type: string
           description: The main content of the page being created.
+          required: true
       actionVerb: GET
     - key: get-confluence-application-id
       name: Get Application Id for Confluence
@@ -43,10 +46,12 @@ modules:
           title: Confluence Page Link
           type: string
           description: The link of the confluence page
+          required: true
         confluenceApplicationId:
           title: Confluence Application Id
           type: string
           description: The application id for confluence
+          required: true
         issueId:
           title: Issue ID
           type: string
@@ -70,15 +75,13 @@ modules:
         3. Use the "fetch-details" action to retrieve comprehensive details about the issue, including child tasks and attachments.
         4. Generate the content for confluence page considering the below points
            - When generating headings, Don't mention the jira id
-           - Consider the "Guidelines for Quality Documentation:" given below
-           - Create an engaging title using the Jira issue key followed by a brief, descriptive phrase.
+           - Create an engaging title using the Jira issue key followed by a descriptive phrase.
            - Write a concise, one-paragraph summary of the issue in past tense, highlighting its purpose, key actions, and outcomes.
            - Generate a Table of Contents with hyperlinks to section headings, ensuring all links match heading text exactly (case-sensitive).
            - Organize the content into clearly defined sections. Group child tasks, subtasks, and related details logically, it is very IMPORTANT to include summaries, progress updates, and outcomes.
-           - Provide as much details as possible
            - Attach and reference any relevant media files, evidence, or links.
            - Use plain, business-friendly language to ensure accessibility for non-technical readers.
-        5. Display the generated content to the user for confirmation or feedback. REMEMBER the generated TITLE as pageTitle and generated CONTENT as pageBody
+        5. Display the generated content to the user for confirmation or feedback.
         6. If the user confirms, use the "create-confluence-page" action to create the confluence page
         7. Provide the user with the direct link to the newly created Confluence page and also ask the user to check the confluence page in a few minutes if there are attachments as it is in process of updation.
         8. Ask the user if they want to link the generated confluence page to jira

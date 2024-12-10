@@ -43,10 +43,13 @@ export async function getJiraDetails(issueKey) {
   });
 
   const { issues } = await response.json();
-  const parentIssue = issues.find(issue => issue.key === issueKey);
+  let parentIssue = issues.find(issue => issue.key === issueKey);
 
   if (!parentIssue) {
-    throw new Error(`Issue with key ${issueKey} not found.`);
+    parentIssue = issues.find(issue => issue.id === issueKey);
+    if (!parentIssue) {
+      throw new Error(`Issue with key ${issueKey} not found.`);
+    }
   }
 
   const final_output = {}
@@ -72,7 +75,7 @@ export function fetchAttachments(jira_data) {
   var content_links = []
   for (let index = 0; index < attachment_data.length; index++) {
     content_links.push(attachment_data[index]["content"])
-    storage.set(attachment_data[index]["id"], [attachment_data[index]["filename"], attachment_data[index]["mimeType"]])
+    storage.set(attachment_data[index]["id"], `${attachment_data[index]["filename"]}&divider${attachment_data[index]["mimeType"]}`)
   }
   return content_links;
 }
@@ -155,7 +158,15 @@ resolver.define("processUploadAttachment", async ({ payload, context }) => {
       inProgress = await response.json()["inProgress"];
       count += 1
     }
-    updateConfluencePage(html_string, page_id, page_title, attachment_anchor)
+    let attach_filename_map = {}
+    let fileMeta;
+    for (const [attach_id, anchor_tag] of Object.entries(attachment_anchor)) {
+      fileMeta = await storage.get(attach_id)
+      fileMeta = await fileMeta.split("&divider");
+      attach_filename_map[attach_id] = [anchor_tag, fileMeta[0]]
+      storage.delete(attach_id)
+    }
+    updateConfluencePage(html_string, page_id, page_title, attach_filename_map)
 
     return;
   }
@@ -164,14 +175,16 @@ resolver.define("processUploadAttachment", async ({ payload, context }) => {
     // Fetch metadata and details for the attachment
     let fileMeta, filename, filemime;
     try {
-      fileMeta = await storage.get(attachment_id);
+      fileMeta = await storage.get(attachment_id)
+      fileMeta = await fileMeta.split("&divider");
       filename = await fileMeta[0]
       filemime = await fileMeta[1]
     } catch (e) {
+      console.log("Inside catch: " + e)
       fileMeta = await getAttachmentMetaData(attachment_id)
       filename = await fileMeta["filename"]
       filemime = await fileMeta["mimeType"]
-      storage.set(attachment_id, [await filename, await filemime])
+      storage.set(attachment_id,`${await filename}&divider${await filemime}`)
     }
     const fileBlob = await getAttachmentDetails(attachment_id, filemime);
 
@@ -213,12 +226,10 @@ export async function uploadSingleAttachment(page_id, filename, file_blob, mimeT
   if (!response.ok) throw new Error(`Attachment upload failed: ${response.status}`);
 }
 
-export async function updateConfluencePage(body_content, page_id, title, id_anchor_map) {
+export async function updateConfluencePage(body_content, page_id, title, attach_filename_map) {
 
-  for (const [attach_id, attach_anchor] of Object.entries(id_anchor_map)) {
-    const attach_filename = await storage.get(attach_id)
-    body_content = body_content.replace(attach_anchor, `<ac:image><ri:attachment ri:filename="${await attach_filename[0]}" /></ac:image>`)
-    storage.delete(attach_id)
+  for (const [_, attach_meta] of Object.entries(attach_filename_map)) {
+    body_content = body_content.replace(attach_meta[0], `<ac:image><ri:attachment ri:filename="${attach_meta[1]}" /></ac:image>`)
   }
 
   const bodyData = JSON.stringify({
@@ -245,12 +256,11 @@ export async function updateConfluencePage(body_content, page_id, title, id_anch
   });
 
   let data = await response.json()
-
 }
 
 export async function createConfluencePage(payload) {
 
-  if (!payload.pageBody || !payload.pageTitle || payload.confluenceSpaceKey) {
+  if (!payload.pageBody || !payload.pageTitle || !payload.confluenceSpaceKey) {
     throw new Error(`Required Input not provided, please provide pageBody, pageTitle and confluenceSpaceKey`);
   }
 
